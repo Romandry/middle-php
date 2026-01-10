@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ordering\Domain;
 
+use App\Modules\Ordering\Domain\Exception\OrderCannotBeEmpty;
 use App\Modules\Shared\Domain\ValueObject\Money;
 
 final class Order
@@ -28,7 +29,7 @@ final class Order
     public static function place(array $items): self
     {
         if ($items === []) {
-            throw new \InvalidArgumentException('Order must have at least one item.');
+            throw OrderCannotBeEmpty::create();
         }
 
         $currency = $items[0]->currency();

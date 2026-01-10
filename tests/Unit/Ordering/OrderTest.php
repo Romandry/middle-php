@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Catalog\Domain\ValueObject\Sku;
+use App\Modules\Ordering\Domain\Exception\OrderCannotBeEmpty;
 use App\Modules\Ordering\Domain\Order;
 use App\Modules\Ordering\Domain\OrderItem;
 use App\Modules\Shared\Domain\ValueObject\Money;
@@ -8,7 +9,7 @@ use App\Modules\Shared\Domain\ValueObject\Quantity;
 
 test('order cannot be created without items', function () {
     Order::place([]);
-})->throws(InvalidArgumentException::class);
+})->throws(OrderCannotBeEmpty::class);
 
 test('order total is sum of item price * quantity', function () {
     $items = [

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Shared\Domain\ValueObject;
 
-class Quantity
+final class Quantity
 {
     public function __construct(private int $value)
     {

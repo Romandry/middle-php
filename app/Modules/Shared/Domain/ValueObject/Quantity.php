@@ -18,8 +18,8 @@ class Quantity
         return $this->value;
     }
 
-    public function equals(self $ohter): bool
+    public function equals(self $other): bool
     {
-        return $this->value === $ohter->value();
+        return $this->value === $other->value();
     }
 }

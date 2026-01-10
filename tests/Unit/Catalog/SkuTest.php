@@ -8,7 +8,7 @@ test('sku cannot be empty', function () {
 
 test('sku is trimmed', function () {
     $sku = new Sku('   ABC-123   ');
-    expect((string)$sku)->toBe('ABC-123');
+    expect((string) $sku)->toBe('ABC-123');
 });
 
 test('two skus with te same value are equal', function () {

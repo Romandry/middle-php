@@ -9,7 +9,9 @@ use InvalidArgumentException;
 final class Sku
 {
     private string $value;
-    public function __construct(string $value) {
+
+    public function __construct(string $value)
+    {
         $value = trim($value);
         if ($value === '') {
             throw new InvalidArgumentException('SKU cannot be empty.');

@@ -14,7 +14,7 @@ final class Order
     private Money $total;
 
     /**
-     * @param OrderItem[] $items
+     * @param  OrderItem[]  $items
      */
     private function __construct(array $items, Money $total)
     {

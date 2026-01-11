@@ -58,7 +58,7 @@ final class PlaceOrderHandler
 
         $this->orders->save($order);
 
-        $orderId = bin2hex(random_bytes(16));
+        $orderId = (string) $order->id();
 
         $result = ['orderId' => $orderId];
 

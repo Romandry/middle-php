@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\Ordering\Domain;
 
 use App\Modules\Ordering\Domain\Exception\OrderCannotBeEmpty;
+use App\Modules\Ordering\Domain\ValueObject\OrderId;
 use App\Modules\Shared\Domain\ValueObject\Money;
 
 final class Order
 {
+    private OrderId $id;
+
     /** @var OrderItem[] */
     private array $items;
 
@@ -17,8 +20,9 @@ final class Order
     /**
      * @param  OrderItem[]  $items
      */
-    private function __construct(array $items, Money $total)
+    private function __construct(OrderId $id, array $items, Money $total)
     {
+        $this->id = $id;
         $this->items = $items;
         $this->total = $total;
     }
@@ -32,6 +36,8 @@ final class Order
             throw OrderCannotBeEmpty::create();
         }
 
+        $id = OrderId::generate();
+
         $currency = $items[0]->currency();
         $totalAmount = 0;
 
@@ -43,7 +49,12 @@ final class Order
             $totalAmount += $item->subTotal()->amount();
         }
 
-        return new self($items, new Money($totalAmount, $currency));
+        return new self($id, $items, new Money($totalAmount, $currency));
+    }
+
+    public function id(): OrderId
+    {
+        return $this->id;
     }
 
     public function total(): Money

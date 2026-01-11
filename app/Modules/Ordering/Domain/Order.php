@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ordering\Domain;
 
 use App\Modules\Ordering\Domain\Exception\OrderCannotBeEmpty;
+use App\Modules\Ordering\Domain\Exception\OrderItemsMustHaveSameCurrency;
 use App\Modules\Ordering\Domain\ValueObject\OrderId;
 use App\Modules\Shared\Domain\ValueObject\Money;
 
@@ -43,7 +44,7 @@ final class Order
 
         foreach ($items as $item) {
             if ($item->currency() !== $currency) {
-                throw new \InvalidArgumentException('All order items must have same currency');
+                throw OrderItemsMustHaveSameCurrency::create($currency, $item->currency());
             }
 
             $totalAmount += $item->subTotal()->amount();

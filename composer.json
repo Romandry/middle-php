@@ -20,6 +20,7 @@
         "nunomaduro/larastan": "^3.8",
         "pestphp/pest": "^3.8.4",
         "pestphp/pest-plugin-laravel": "^3",
+        "phpstan/phpstan-mockery": "^2.0",
         "phpunit/phpunit": "11.5.33"
     },
     "autoload": {

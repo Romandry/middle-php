@@ -2,6 +2,7 @@
 
 use App\Modules\Catalog\Domain\ValueObject\Sku;
 use App\Modules\Ordering\Application\Dto\PlaceOrderCommand;
+use App\Modules\Ordering\Application\Dto\PlaceOrderResult;
 use App\Modules\Ordering\Application\PlaceOrder\PlaceOrderHandler;
 use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
@@ -43,7 +44,8 @@ test('returns previous result when idempotency key already exists', function () 
 
     $result = $handler->handle(new PlaceOrderCommand('ABC-KEY', ['SKU-1' => 2]));
 
-    expect($result)->toBe(['orderId' => 'ORD-123']);
+    expect($result)->toBeInstanceOf(PlaceOrderResult::class);
+    expect($result->orderId())->toBe('ORD-123');
 });
 
 test('creates order and stores idempotency result for new key', function () {
@@ -102,6 +104,9 @@ test('creates order and stores idempotency result for new key', function () {
             ['SKU-1' => 2]
         ));
 
-    expect($result)->toHaveKey('orderId');
-    expect($result['orderId'])->toBeString();
+    //    expect($result)->toHaveKey('orderId');
+    //    expect($result['orderId'])->toBeString();
+    expect($result)->toBeInstanceOf(PlaceOrderResult::class);
+    expect($result->orderId())->toBeString();
+    expect($result->orderId())->not->toBe('');
 });

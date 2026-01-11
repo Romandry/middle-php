@@ -6,6 +6,7 @@ namespace App\Modules\Ordering\Application\PlaceOrder;
 
 use App\Modules\Catalog\Domain\ValueObject\Sku;
 use App\Modules\Ordering\Application\Dto\PlaceOrderCommand;
+use App\Modules\Ordering\Application\Dto\PlaceOrderResult;
 use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
 use App\Modules\Ordering\Application\Port\PricingPort;
@@ -14,9 +15,6 @@ use App\Modules\Ordering\Domain\Order;
 use App\Modules\Ordering\Domain\OrderItem;
 use App\Modules\Shared\Domain\ValueObject\Quantity;
 
-/**
- * @phpstan-type PlaceOrderResult array{orderId: string}
- */
 final class PlaceOrderHandler
 {
     public function __construct(
@@ -26,10 +24,7 @@ final class PlaceOrderHandler
         private IdempotencyRepository $idempotency
     ) {}
 
-    /**
-     * @return array{orderId: string}
-     */
-    public function handle(PlaceOrderCommand $command): array
+    public function handle(PlaceOrderCommand $command): PlaceOrderResult
     {
         $key = $command->idempotencyKey;
 
@@ -37,7 +32,7 @@ final class PlaceOrderHandler
             /** @var array{orderId: string} $previous */
             $previous = $this->idempotency->get($key);
 
-            return $previous;
+            return new PlaceOrderResult($previous['orderId']);
         }
 
         $items = [];
@@ -60,9 +55,9 @@ final class PlaceOrderHandler
 
         $orderId = (string) $order->id();
 
-        $result = ['orderId' => $orderId];
+        $result = new PlaceOrderResult($orderId); // ['orderId' => $orderId];
 
-        $this->idempotency->put($key, $result);
+        $this->idempotency->put($key, $result->toArray());
 
         return $result;
     }

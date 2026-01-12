@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Ordering\Infrastructure;
 
 use App\Modules\Catalog\Domain\ValueObject\Sku;
+use App\Modules\Ordering\Application\Exception\InsufficientStock;
 use App\Modules\Ordering\Application\Port\WarehousePort;
 use App\Modules\Shared\Domain\ValueObject\Quantity;
 
@@ -27,7 +28,7 @@ final class InMemoryWarehousePort implements WarehousePort
         $requested = $quantity->value();
 
         if ($requested > $available) {
-            throw new \RuntimeException('Insufficient stock for SKU: '.$key);
+            throw InsufficientStock::forSku($key, $available, $requested);
         }
 
         $this->stock[$key] = $available - $requested;

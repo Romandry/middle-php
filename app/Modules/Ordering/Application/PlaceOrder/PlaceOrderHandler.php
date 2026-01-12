@@ -40,7 +40,7 @@ final class PlaceOrderHandler
         foreach ($command->items as $skuString => $qtyInt) {
             $sku = new Sku((string) $skuString);
 
-            $qty = new Quantity((int) $qtyInt);
+            $qty = new Quantity($qtyInt);
 
             $price = $this->pricing->priceForSku($sku);
 

@@ -11,14 +11,14 @@ interface IdempotencyRepository
     /**
      * Returns previously stored response payload for the key
      *
-     * @return array<string, mixed> $payload
+     * @return array{orderId: string}
      */
     public function get(string $key): array;
 
     /**
      * Stored response payload for the key
      *
-     * @param  array<string, mixed>  $payload
+     * @param  array{orderId: string}  $payload
      */
     public function put(string $key, array $payload): void;
 }

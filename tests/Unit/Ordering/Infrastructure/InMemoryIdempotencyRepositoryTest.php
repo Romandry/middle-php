@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Ordering\Application\Dto\PlaceOrderResult;
 use App\Modules\Ordering\Infrastructure\InMemoryIdempotencyRepository;
 
 test('in-memory idempotency repository stores and returns payload by key', function () {
@@ -9,9 +10,14 @@ test('in-memory idempotency repository stores and returns payload by key', funct
 
     expect($repo->has('KEY-1'))->toBeFalse();
 
-    $repo->put('KEY-1', ['orderId' => 'ORD-123']);
+    $resultToStore = new PlaceOrderResult('ORD-123');
+
+    $repo->put('KEY-1', $resultToStore);
 
     expect($repo->has('KEY-1'))->toBeTrue();
 
-    expect($repo->get('KEY-1'))->toBe(['orderId' => 'ORD-123']);
+    $result = $repo->get('KEY-1');
+
+    expect($result)->toBeInstanceOf(PlaceOrderResult::class);
+    expect($result->orderId())->toBe('ORD-123');
 });

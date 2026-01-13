@@ -29,10 +29,7 @@ final class PlaceOrderHandler
         $key = $command->idempotencyKey;
 
         if ($this->idempotency->has($key)) {
-            /** @var array{orderId: string} $previous */
-            $previous = $this->idempotency->get($key);
-
-            return new PlaceOrderResult($previous['orderId']);
+            return $this->idempotency->get($key);
         }
 
         $items = [];
@@ -55,9 +52,9 @@ final class PlaceOrderHandler
 
         $orderId = (string) $order->id();
 
-        $result = new PlaceOrderResult($orderId); // ['orderId' => $orderId];
+        $result = new PlaceOrderResult($orderId);
 
-        $this->idempotency->put($key, $result->toArray());
+        $this->idempotency->put($key, $result);
 
         return $result;
     }

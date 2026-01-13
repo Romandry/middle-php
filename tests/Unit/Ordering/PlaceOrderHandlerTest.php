@@ -34,7 +34,7 @@ test('returns previous result when idempotency key already exists', function () 
     $idempotency->shouldReceive('get')
         ->with('ABC-KEY')
         ->once()
-        ->andReturn(['orderId' => 'ORD-123']);
+        ->andReturn(new PlaceOrderResult('ORD-123'));
 
     $pricing->shouldNotReceive('priceForSku');
     $warehouse->shouldNotReceive('reserve');
@@ -86,8 +86,8 @@ test('creates order and stores idempotency result for new key', function () {
         ->once()
         ->with(
             'NEW-KEY',
-            Mockery::on(function (array $payload) {
-                return isset($payload['orderId']) && is_string($payload['orderId']) && $payload['orderId'] !== '';
+            Mockery::on(function ($result) {
+                return $result instanceof PlaceOrderResult && $result->orderId() !== '';
             })
         );
 

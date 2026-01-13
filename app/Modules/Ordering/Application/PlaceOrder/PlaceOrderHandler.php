@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Modules\Ordering\Application\PlaceOrder;
 
 use App\Modules\Catalog\Domain\ValueObject\Sku;
+use App\Modules\Ordering\Application\Dto\IdempotencyRecord;
 use App\Modules\Ordering\Application\Dto\PlaceOrderCommand;
 use App\Modules\Ordering\Application\Dto\PlaceOrderResult;
+use App\Modules\Ordering\Application\Exception\IdempotencyKeyConflict;
 use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
 use App\Modules\Ordering\Application\Port\PricingPort;
@@ -28,8 +30,16 @@ final class PlaceOrderHandler
     {
         $key = $command->idempotencyKey;
 
+        $requestHash = $this->hashCommand($command);
+
         if ($this->idempotency->has($key)) {
-            return $this->idempotency->get($key);
+            $record = $this->idempotency->get($key);
+
+            if ($record->requestHash !== $requestHash) {
+                throw IdempotencyKeyConflict::forKey($key);
+            }
+
+            return $record->result;
         }
 
         $items = [];
@@ -54,8 +64,23 @@ final class PlaceOrderHandler
 
         $result = new PlaceOrderResult($orderId);
 
-        $this->idempotency->put($key, $result);
+        $this->idempotency->put($key, new IdempotencyRecord($requestHash, $result));
 
         return $result;
+    }
+
+    private function hashCommand(PlaceOrderCommand $command): string
+    {
+        $items = $command->items;
+        ksort($items);
+
+        $normalized = [];
+        foreach ($items as $sku => $qty) {
+            $normalized[(string) $sku] = (int) $qty;
+        }
+
+        $json = json_encode($normalized, JSON_THROW_ON_ERROR);
+
+        return hash('sha256', $json);
     }
 }

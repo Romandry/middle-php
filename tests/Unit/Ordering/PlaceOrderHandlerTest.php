@@ -1,8 +1,10 @@
 <?php
 
 use App\Modules\Catalog\Domain\ValueObject\Sku;
+use App\Modules\Ordering\Application\Dto\IdempotencyRecord;
 use App\Modules\Ordering\Application\Dto\PlaceOrderCommand;
 use App\Modules\Ordering\Application\Dto\PlaceOrderResult;
+use App\Modules\Ordering\Application\Exception\IdempotencyKeyConflict;
 use App\Modules\Ordering\Application\PlaceOrder\PlaceOrderHandler;
 use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
@@ -34,7 +36,10 @@ test('returns previous result when idempotency key already exists', function () 
     $idempotency->shouldReceive('get')
         ->with('ABC-KEY')
         ->once()
-        ->andReturn(new PlaceOrderResult('ORD-123'));
+        ->andReturn(new IdempotencyRecord(
+            hash('sha256', json_encode(['SKU-1' => 2], JSON_THROW_ON_ERROR)),
+            new PlaceOrderResult('ORD-123')
+        ));
 
     $pricing->shouldNotReceive('priceForSku');
     $warehouse->shouldNotReceive('reserve');
@@ -86,8 +91,10 @@ test('creates order and stores idempotency result for new key', function () {
         ->once()
         ->with(
             'NEW-KEY',
-            Mockery::on(function ($result) {
-                return $result instanceof PlaceOrderResult && $result->orderId() !== '';
+            Mockery::on(function ($record) {
+                return $record instanceof IdempotencyRecord
+                    && $record->result->orderId() !== ''
+                    && $record->requestHash !== '';
             })
         );
 
@@ -110,3 +117,40 @@ test('creates order and stores idempotency result for new key', function () {
     expect($result->orderId())->toBeString();
     expect($result->orderId())->not->toBe('');
 });
+
+test('throws conflict when idempotency key is reused with different request payload', function () {
+    /** @var IdempotencyRepository & MockInterface $idempotency */
+    $idempotency = Mockery::mock(IdempotencyRepository::class);
+
+    /** @var PricingPort & MockInterface $pricing */
+    $pricing = Mockery::mock(PricingPort::class);
+
+    /** @var WarehousePort & MockInterface $warehouse */
+    $warehouse = Mockery::mock(WarehousePort::class);
+
+    /** @var OrderRepository & MockInterface $orders */
+    $orders = Mockery::mock(OrderRepository::class);
+
+    $idempotency->shouldReceive('has')
+        ->with('ABC-KEY')
+        ->once()
+        ->andReturn(true);
+
+    $storedHash = hash('sha256', json_encode(['SKU-1' => 2], JSON_THROW_ON_ERROR));
+
+    $idempotency->shouldReceive('get')
+        ->with('ABC-KEY')
+        ->once()
+        ->andReturn(new IdempotencyRecord(
+            $storedHash,
+            new PlaceOrderResult('ORD-123')
+        ));
+
+    $pricing->shouldNotReceive('priceForSku');
+    $warehouse->shouldNotReceive('reserve');
+    $orders->shouldNotReceive('save');
+
+    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency);
+
+    $handler->handle(new PlaceOrderCommand('ABC-KEY', ['SKU-1' => 222]));
+})->throws(IdempotencyKeyConflict::class);

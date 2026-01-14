@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Ordering\Application\Service;
 
 use App\Modules\Ordering\Application\Dto\PlaceOrderCommand;
+use App\Modules\Ordering\Application\Port\PlaceOrderRequestHasher;
 
-final class Sha256PlaceOrderRequestHasher
+final class Sha256PlaceOrderRequestHasher implements PlaceOrderRequestHasher
 {
     public function hash(PlaceOrderCommand $command): string
     {

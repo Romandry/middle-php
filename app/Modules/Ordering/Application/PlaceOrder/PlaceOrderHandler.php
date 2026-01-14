@@ -11,9 +11,9 @@ use App\Modules\Ordering\Application\Dto\PlaceOrderResult;
 use App\Modules\Ordering\Application\Exception\IdempotencyKeyConflict;
 use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
+use App\Modules\Ordering\Application\Port\PlaceOrderRequestHasher;
 use App\Modules\Ordering\Application\Port\PricingPort;
 use App\Modules\Ordering\Application\Port\WarehousePort;
-use App\Modules\Ordering\Application\Service\Sha256PlaceOrderRequestHasher;
 use App\Modules\Ordering\Domain\Order;
 use App\Modules\Ordering\Domain\OrderItem;
 use App\Modules\Shared\Domain\ValueObject\Quantity;
@@ -25,7 +25,7 @@ final class PlaceOrderHandler
         private WarehousePort $warehouse,
         private OrderRepository $orders,
         private IdempotencyRepository $idempotency,
-        private Sha256PlaceOrderRequestHasher $hasher
+        private PlaceOrderRequestHasher $hasher
     ) {}
 
     public function handle(PlaceOrderCommand $command): PlaceOrderResult

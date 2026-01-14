@@ -6,6 +6,7 @@ use App\Modules\Catalog\Domain\ValueObject\Sku;
 use App\Modules\Ordering\Application\Dto\PlaceOrderCommand;
 use App\Modules\Ordering\Application\Exception\IdempotencyKeyConflict;
 use App\Modules\Ordering\Application\PlaceOrder\PlaceOrderHandler;
+use App\Modules\Ordering\Application\Service\Sha256PlaceOrderRequestHasher;
 use App\Modules\Ordering\Infrastructure\InMemoryIdempotencyRepository;
 use App\Modules\Ordering\Infrastructure\InMemoryOrderRepository;
 use App\Modules\Ordering\Infrastructure\InMemoryPricingPort;
@@ -16,6 +17,7 @@ test('place order end-to-end: reserves stock, saves order and is idempotent', fu
     // Arrange
     $idempotency = new InMemoryIdempotencyRepository;
     $orders = new InMemoryOrderRepository;
+    $hasher = new Sha256PlaceOrderRequestHasher;
 
     $pricing = new InMemoryPricingPort(
         ['SKU-1' => new Money(500, 'EUR')]
@@ -24,7 +26,7 @@ test('place order end-to-end: reserves stock, saves order and is idempotent', fu
         ['SKU-1' => 10]
     );
 
-    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency);
+    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency, $hasher);
 
     // Act1
     $result1 = $handler->handle(new PlaceOrderCommand('KEY-1', ['SKU-1' => 2]));
@@ -47,6 +49,7 @@ test('place order end-to-end: throws conflict when key reused with different pay
     // Arrange
     $idempotency = new InMemoryIdempotencyRepository;
     $orders = new InMemoryOrderRepository;
+    $hasher = new Sha256PlaceOrderRequestHasher;
 
     $pricing = new InMemoryPricingPort(
         ['SKU-1' => new Money(500, 'EUR')]
@@ -55,7 +58,7 @@ test('place order end-to-end: throws conflict when key reused with different pay
         ['SKU-1' => 10]
     );
 
-    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency);
+    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency, $hasher);
     $handler->handle(new PlaceOrderCommand('KEY-1', ['SKU-1' => 2]));
     $handler->handle(new PlaceOrderCommand('KEY-1', ['SKU-2' => 2]));
 

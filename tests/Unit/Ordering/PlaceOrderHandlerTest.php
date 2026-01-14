@@ -10,6 +10,7 @@ use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
 use App\Modules\Ordering\Application\Port\PricingPort;
 use App\Modules\Ordering\Application\Port\WarehousePort;
+use App\Modules\Ordering\Application\Service\Sha256PlaceOrderRequestHasher;
 use App\Modules\Ordering\Domain\Order;
 use App\Modules\Shared\Domain\ValueObject\Money;
 use App\Modules\Shared\Domain\ValueObject\Quantity;
@@ -28,6 +29,8 @@ test('returns previous result when idempotency key already exists', function () 
     /** @var OrderRepository & MockInterface $orders */
     $orders = Mockery::mock(OrderRepository::class);
 
+    $hasher = new Sha256PlaceOrderRequestHasher;
+
     $idempotency->shouldReceive('has')
         ->with('ABC-KEY')
         ->once()
@@ -45,7 +48,7 @@ test('returns previous result when idempotency key already exists', function () 
     $warehouse->shouldNotReceive('reserve');
     $orders->shouldNotReceive('save');
 
-    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency);
+    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency, $hasher);
 
     $result = $handler->handle(new PlaceOrderCommand('ABC-KEY', ['SKU-1' => 2]));
 
@@ -65,6 +68,8 @@ test('creates order and stores idempotency result for new key', function () {
 
     /** @var OrderRepository & MockInterface $orders */
     $orders = Mockery::mock(OrderRepository::class);
+
+    $hasher = new Sha256PlaceOrderRequestHasher;
 
     $idempotency->shouldReceive('has')
         ->with('NEW-KEY')
@@ -102,7 +107,8 @@ test('creates order and stores idempotency result for new key', function () {
         $pricing,
         $warehouse,
         $orders,
-        $idempotency
+        $idempotency,
+        $hasher
     );
 
     $result = $handler->handle(
@@ -131,6 +137,8 @@ test('throws conflict when idempotency key is reused with different request payl
     /** @var OrderRepository & MockInterface $orders */
     $orders = Mockery::mock(OrderRepository::class);
 
+    $hasher = new Sha256PlaceOrderRequestHasher;
+
     $idempotency->shouldReceive('has')
         ->with('ABC-KEY')
         ->once()
@@ -150,7 +158,7 @@ test('throws conflict when idempotency key is reused with different request payl
     $warehouse->shouldNotReceive('reserve');
     $orders->shouldNotReceive('save');
 
-    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency);
+    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency, $hasher);
 
     $handler->handle(new PlaceOrderCommand('ABC-KEY', ['SKU-1' => 222]));
 })->throws(IdempotencyKeyConflict::class);

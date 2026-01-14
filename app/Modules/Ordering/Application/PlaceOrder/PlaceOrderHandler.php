@@ -13,6 +13,7 @@ use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
 use App\Modules\Ordering\Application\Port\PricingPort;
 use App\Modules\Ordering\Application\Port\WarehousePort;
+use App\Modules\Ordering\Application\Service\Sha256PlaceOrderRequestHasher;
 use App\Modules\Ordering\Domain\Order;
 use App\Modules\Ordering\Domain\OrderItem;
 use App\Modules\Shared\Domain\ValueObject\Quantity;
@@ -23,14 +24,15 @@ final class PlaceOrderHandler
         private PricingPort $pricing,
         private WarehousePort $warehouse,
         private OrderRepository $orders,
-        private IdempotencyRepository $idempotency
+        private IdempotencyRepository $idempotency,
+        private Sha256PlaceOrderRequestHasher $hasher
     ) {}
 
     public function handle(PlaceOrderCommand $command): PlaceOrderResult
     {
         $key = $command->idempotencyKey;
 
-        $requestHash = $this->hashCommand($command);
+        $requestHash = $this->hasher->hash($command);
 
         if ($this->idempotency->has($key)) {
             $record = $this->idempotency->get($key);
@@ -67,20 +69,5 @@ final class PlaceOrderHandler
         $this->idempotency->put($key, new IdempotencyRecord($requestHash, $result));
 
         return $result;
-    }
-
-    private function hashCommand(PlaceOrderCommand $command): string
-    {
-        $items = $command->items;
-        ksort($items);
-
-        $normalized = [];
-        foreach ($items as $sku => $qty) {
-            $normalized[(string) $sku] = (int) $qty;
-        }
-
-        $json = json_encode($normalized, JSON_THROW_ON_ERROR);
-
-        return hash('sha256', $json);
     }
 }

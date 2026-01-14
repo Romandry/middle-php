@@ -41,7 +41,7 @@ test('place order end-to-end: reserves stock, saves order and is idempotent', fu
 
     // Assert
     expect($result2->orderId())->toBe($result1->orderId());
-    // second reserve does not run
+    // second reserve does not run.
     expect($warehouse->available(new Sku('SKU-1'))->value())->toBe(8);
 });
 

@@ -5,6 +5,7 @@ use App\Modules\Ordering\Application\Dto\IdempotencyRecord;
 use App\Modules\Ordering\Application\Dto\PlaceOrderCommand;
 use App\Modules\Ordering\Application\Dto\PlaceOrderResult;
 use App\Modules\Ordering\Application\Exception\IdempotencyKeyConflict;
+use App\Modules\Ordering\Application\Exception\InsufficientStock;
 use App\Modules\Ordering\Application\PlaceOrder\PlaceOrderHandler;
 use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
@@ -209,3 +210,56 @@ test('releases reserved stock when saving order fails', function () {
 
     $handler->handle(new PlaceOrderCommand('NEW-KEY', ['SKU-1' => 2]));
 })->throws(RuntimeException::class);
+
+test('releases only successfully reserved items when reservation fails mid-way', function () {
+    $idempotency = Mockery::mock(IdempotencyRepository::class);
+    $pricing = Mockery::mock(PricingPort::class);
+    $warehouse = Mockery::mock(WarehousePort::class);
+    $orders = Mockery::mock(OrderRepository::class);
+    $hasher = Mockery::mock(PlaceOrderRequestHasher::class);
+
+    $hasher->shouldReceive('hash')
+        ->once()
+        ->andReturn('hash-1');
+
+    $idempotency->shouldReceive('has')
+        ->once()
+        ->andReturn(false);
+
+    $pricing->shouldReceive('priceForSku')
+        ->twice()
+        ->andReturn(new Money(500, 'EUR'));
+
+    $warehouse->shouldReceive('reserve')
+        ->once()
+        ->with(
+            Mockery::on(fn ($sku) => (string) $sku === 'SKU-1'),
+            Mockery::type(Quantity::class)
+        );
+    $warehouse->shouldReceive('reserve')
+        ->once()
+        ->with(
+            Mockery::on(fn ($sku) => (string) $sku === 'SKU-2'),
+            Mockery::type(Quantity::class)
+        )
+        ->andThrow(new InsufficientStock('SKU-2'));
+
+    // Release should be ONLY for SKU-1
+    $warehouse->shouldReceive('release')
+        ->once()
+        ->with(
+            Mockery::on(fn ($sku) => (string) $sku === 'SKU-1'),
+            Mockery::type(Quantity::class)
+        );
+
+    $orders->shouldNotReceive('save');
+    $idempotency->shouldNotReceive('put');
+
+    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency, $hasher);
+    $handler->handle(new PlaceOrderCommand(
+        'ABC-KEY', [
+            'SKU-1' => 2,
+            'SKU-2' => 1,
+        ]));
+
+})->throws(InsufficientStock::class);

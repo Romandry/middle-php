@@ -13,4 +13,6 @@ interface WarehousePort
      * Reserve stock. Should throw a domain exception if not enough stock.
      */
     public function reserve(Sku $sku, Quantity $quantity): void;
+
+    public function release(Sku $sku, Quantity $quantity): void;
 }

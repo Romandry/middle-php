@@ -8,6 +8,7 @@ use App\Modules\Ordering\Application\Exception\IdempotencyKeyConflict;
 use App\Modules\Ordering\Application\PlaceOrder\PlaceOrderHandler;
 use App\Modules\Ordering\Application\Port\IdempotencyRepository;
 use App\Modules\Ordering\Application\Port\OrderRepository;
+use App\Modules\Ordering\Application\Port\PlaceOrderRequestHasher;
 use App\Modules\Ordering\Application\Port\PricingPort;
 use App\Modules\Ordering\Application\Port\WarehousePort;
 use App\Modules\Ordering\Application\Service\Sha256PlaceOrderRequestHasher;
@@ -162,3 +163,49 @@ test('throws conflict when idempotency key is reused with different request payl
 
     $handler->handle(new PlaceOrderCommand('ABC-KEY', ['SKU-1' => 222]));
 })->throws(IdempotencyKeyConflict::class);
+
+test('releases reserved stock when saving order fails', function () {
+    /** @var IdempotencyRepository & MockInterface $idempotency */
+    $idempotency = Mockery::mock(IdempotencyRepository::class);
+
+    /** @var PricingPort & MockInterface $pricing */
+    $pricing = Mockery::mock(PricingPort::class);
+
+    /** @var WarehousePort & MockInterface $warehouse */
+    $warehouse = Mockery::mock(WarehousePort::class);
+
+    /** @var OrderRepository & MockInterface $orders */
+    $orders = Mockery::mock(OrderRepository::class);
+
+    $hasher = Mockery::mock(PlaceOrderRequestHasher::class);
+
+    $hasher->shouldReceive('hash')
+        ->once()
+        ->andReturn('hash-1');
+
+    $idempotency->shouldReceive('has')
+        ->once()
+        ->andReturn(false);
+
+    $pricing->shouldReceive('priceForSku')
+        ->once()
+        ->andReturn(new Money(500, 'EUR'));
+
+    $warehouse->shouldReceive('reserve')
+        ->once()
+        ->with(Mockery::type(Sku::class), Mockery::type(Quantity::class));
+
+    $warehouse->shouldReceive('release')
+        ->once()
+        ->with(Mockery::type(Sku::class), Mockery::type(Quantity::class));
+
+    $orders->shouldReceive('save')
+        ->once()
+        ->andThrow(new RuntimeException('DB DOWN')); // Save down
+
+    $idempotency->shouldNotReceive('put'); // idempotency does not put - order do not created
+
+    $handler = new PlaceOrderHandler($pricing, $warehouse, $orders, $idempotency, $hasher);
+
+    $handler->handle(new PlaceOrderCommand('NEW-KEY', ['SKU-1' => 2]));
+})->throws(RuntimeException::class);

@@ -34,6 +34,13 @@ final class InMemoryWarehousePort implements WarehousePort
         $this->stock[$key] = $available - $requested;
     }
 
+    public function release(Sku $sku, Quantity $quantity): void
+    {
+        $key = (string) $sku;
+
+        $this->stock[$key] = ($this->stock[$key] ?? 0) + $quantity->value();
+    }
+
     public function available(Sku $sku): Quantity
     {
         $key = (string) $sku;

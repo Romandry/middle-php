@@ -44,30 +44,42 @@ final class PlaceOrderHandler
             return $record->result;
         }
 
-        $items = [];
+        /** @var array<int, array{sku: Sku, quantity: Quantity}> $reserved */
+        $reserved = [];
 
-        foreach ($command->items as $skuString => $qtyInt) {
-            $sku = new Sku((string) $skuString);
+        try {
+            $items = [];
 
-            $qty = new Quantity($qtyInt);
+            foreach ($command->items as $skuString => $qtyInt) {
+                $sku = new Sku((string) $skuString);
 
-            $price = $this->pricing->priceForSku($sku);
+                $qty = new Quantity($qtyInt);
 
-            $this->warehouse->reserve($sku, $qty);
+                $price = $this->pricing->priceForSku($sku);
 
-            $items[] = new OrderItem($sku, $qty, $price);
+                $this->warehouse->reserve($sku, $qty);
+
+                $reserved[] = ['sku' => $sku, 'qty' => $qty];
+
+                $items[] = new OrderItem($sku, $qty, $price);
+            }
+
+            $order = Order::place($items);
+
+            $this->orders->save($order);
+
+            $orderId = (string) $order->id();
+
+            $result = new PlaceOrderResult($orderId);
+
+            $this->idempotency->put($key, new IdempotencyRecord($requestHash, $result));
+
+            return $result;
+        } catch (\Throwable $exception) {
+            foreach ($reserved as $reservedItem) {
+                $this->warehouse->release($reservedItem['sku'], $reservedItem['qty']);
+            }
+            throw $exception;
         }
-
-        $order = Order::place($items);
-
-        $this->orders->save($order);
-
-        $orderId = (string) $order->id();
-
-        $result = new PlaceOrderResult($orderId);
-
-        $this->idempotency->put($key, new IdempotencyRecord($requestHash, $result));
-
-        return $result;
     }
 }
